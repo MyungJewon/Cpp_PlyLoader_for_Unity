@@ -1,0 +1,13 @@
+# 빌드 결과물 (컴파일된 파일들은 올릴 필요 없음)
+build/
+
+# 포인트 클라우드 데이터 파일 (용량이 너무 큼)
+*.ply
+*.pcd
+
+# Visual Studio 임시 파일
+*.exe
+*.ilk
+*.obj
+*.pdb
+vc140.pdb
