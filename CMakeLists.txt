@@ -22,3 +22,9 @@ add_executable(PointCloudViewer
 # 3. 내장 OpenGL 찾기 및 라이브러리 연결
 find_package(OpenGL REQUIRED)
 target_link_libraries(PointCloudViewer PRIVATE glfw OpenGL::GL)
+
+# 4. MSVC(Visual Studio)에서 소스 파일을 UTF-8로 읽도록 설정
+# 이게 없으면 한글 주석/문자열이 깨지거나 컴파일 에러가 납니다.
+if(MSVC)
+    target_compile_options(PointCloudViewer PRIVATE /utf-8)
+endif()
