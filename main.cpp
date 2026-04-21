@@ -1,9 +1,17 @@
+// macOS 10.14+에서 OpenGL deprecated 경고 억제
+// (OpenGL은 deprecated되었지만 아직 동작함)
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#endif
+
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
-#include <cstddef>   // ptrdiff_t (GLsizeiptr 정의에 필요)
-#include <cstdint>   // uintptr_t (포인터 크기의 정수형, 오프셋 캐스팅에 필요)
+#include <cstddef>   // ptrdiff_t
+#include <cstdint>   // uintptr_t
+#ifdef _WIN32
 #include <windows.h> // SetConsoleOutputCP (콘솔 한글 출력용)
+#endif
 #include "PointCloud.h"
 #include "PlyParser.h"
 
@@ -18,20 +26,24 @@
 // 한 번 올려두면 매 프레임마다 전송 없이 GPU가 직접 꺼내 씁니다.
 // 요리사 옆 작업대에 식재료를 미리 올려두는 것과 같습니다.
 //
-// [왜 직접 함수 포인터를 로딩하나요?]
+// [왜 Windows에서는 직접 함수 포인터를 로딩하나요?]
 // Windows의 기본 OpenGL 헤더(gl.h)는 아주 오래된 버전(1.1)만 지원합니다.
 // VBO는 OpenGL 1.5에서 추가된 기능이라서 함수가 헤더에 없습니다.
 // 그래서 glfwGetProcAddress()로 그래픽 드라이버에서 함수를 직접 꺼내와야 합니다.
+// macOS/Linux는 OpenGL 헤더가 최신이라서 이 과정이 필요 없습니다.
 // (GLEW나 GLAD 같은 라이브러리가 이 작업을 자동화해주는 것입니다.)
 // ============================================================
 
-// VBO 관련 OpenGL 상수 (gl.h 1.1에는 없어서 직접 정의)
-#define GL_ARRAY_BUFFER  0x8892  // "이건 정점 데이터용 버퍼입니다"라고 알려주는 타입
-#define GL_STATIC_DRAW   0x88B4  // "이 데이터는 한 번 올리고 자주 읽기만 할 거예요"
+#ifdef _WIN32
+// VBO 관련 OpenGL 상수 (Windows gl.h 1.1에는 없어서 직접 정의)
+#ifndef GL_ARRAY_BUFFER
+#define GL_ARRAY_BUFFER  0x8892
+#endif
+#ifndef GL_STATIC_DRAW
+#define GL_STATIC_DRAW   0x88B4
+#endif
 
 // GLsizeiptr: 버퍼 크기를 나타내는 타입 (포인터와 같은 크기의 정수)
-// 64비트 환경에서는 8바이트, 32비트에서는 4바이트
-// Windows gl.h 1.1에 없어서 직접 정의합니다.
 typedef ptrdiff_t GLsizeiptr;
 
 // VBO 함수 포인터 타입 정의
@@ -47,6 +59,7 @@ PFNGLGENBUFFERSPROC    glGenBuffers    = nullptr;
 PFNGLBINDBUFFERPROC    glBindBuffer    = nullptr;
 PFNGLBUFFERDATAPROC    glBufferData    = nullptr;
 PFNGLDELETEBUFFERSPROC glDeleteBuffers = nullptr;
+#endif // _WIN32
 
 
 // ============================================================
@@ -118,11 +131,11 @@ void framebufferSizeCallback(GLFWwindow*, int width, int height) {
 
 int main(int argc, char* argv[]) {
 
-    // 콘솔 출력을 UTF-8로 설정 (한글 깨짐 방지)
-    // Windows 터미널은 기본이 CP949(한국어 인코딩)라서
-    // UTF-8로 작성된 한글 문자열이 깨져 보입니다.
-    // 65001 = UTF-8 코드 페이지 번호
+    // 콘솔 출력을 UTF-8로 설정 (Windows 한글 깨짐 방지)
+    // macOS/Linux 터미널은 기본이 UTF-8이므로 Windows에서만 필요
+#ifdef _WIN32
     SetConsoleOutputCP(65001);
+#endif
 
     // --- 파일 경로 결정 ---
     std::string filePath;
@@ -149,22 +162,24 @@ int main(int argc, char* argv[]) {
     glfwMakeContextCurrent(window);
 
     // ============================================================
-    // VBO 함수 포인터 로딩
+    // VBO 사용 가능 여부 확인
     // ============================================================
-    // OpenGL 컨텍스트(glfwMakeContextCurrent)가 만들어진 후에만 가능합니다.
-    // glfwGetProcAddress()는 현재 그래픽 드라이버에서 해당 이름의 함수 주소를 찾아옵니다.
-    // reinterpret_cast는 "이 주소를 내가 원하는 함수 포인터 타입으로 해석해"라는 뜻입니다.
+    // Windows: OpenGL 1.1 헤더 제한 때문에 런타임에 함수 주소를 직접 로딩해야 합니다.
+    // macOS/Linux: OpenGL 함수가 헤더에 이미 선언되어 있어서 바로 사용 가능합니다.
     // ============================================================
+#ifdef _WIN32
     glGenBuffers    = reinterpret_cast<PFNGLGENBUFFERSPROC>   (glfwGetProcAddress("glGenBuffers"));
     glBindBuffer    = reinterpret_cast<PFNGLBINDBUFFERPROC>   (glfwGetProcAddress("glBindBuffer"));
     glBufferData    = reinterpret_cast<PFNGLBUFFERDATAPROC>   (glfwGetProcAddress("glBufferData"));
     glDeleteBuffers = reinterpret_cast<PFNGLDELETEBUFFERSPROC>(glfwGetProcAddress("glDeleteBuffers"));
-
-    // 로딩 실패 시 VBO 없이 기존 방식으로 동작하도록 체크
     bool vboAvailable = glGenBuffers && glBindBuffer && glBufferData && glDeleteBuffers;
     if (!vboAvailable) {
         std::cout << "[경고] VBO를 지원하지 않는 환경입니다. 기존 방식으로 렌더링합니다." << std::endl;
     }
+#else
+    // macOS/Linux는 OpenGL 헤더가 최신이라 VBO가 항상 사용 가능
+    bool vboAvailable = true;
+#endif
 
     // ============================================================
     // VBO 생성 및 데이터 업로드 (딱 한 번만!)
@@ -240,8 +255,6 @@ int main(int argc, char* argv[]) {
                 GL_FLOAT,                       // float 타입
                 g_cloud.stride,                 // 다음 점까지의 간격
                 (const void*)0                  // 오프셋 0 = 버퍼의 맨 처음부터 시작
-                                                // VBO가 바인드된 상태에서는 nullptr 대신
-                                                // (const void*)0 을 써야 MSVC에서 안전합니다.
             );
 
             if (g_cloud.colorOffset != -1) {
