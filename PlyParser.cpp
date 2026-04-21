@@ -51,6 +51,12 @@ bool loadPly(const std::string &filePath, PointCloud &cloud)
     std::string line;
     while (std::getline(file, line))
     {
+        // Windows에서 만든 PLY 파일은 줄바꿈이 \r\n입니다.
+        // 바이너리 모드로 열면 \r이 자동 제거되지 않아서
+        // "end_header\r" 처럼 끝에 \r이 붙어 비교가 실패합니다.
+        // 그래서 매 줄마다 끝의 \r을 명시적으로 제거합니다.
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
 
         if (line.find("element vertex") != std::string::npos)
         {

@@ -224,17 +224,18 @@ public class PlyLoaderPlugin : MonoBehaviour
 
         _meshRenderer = gameObject.AddComponent<MeshRenderer>();
 
-        // 포인트 렌더링에 맞는 셰이더를 사용합니다.
-        // "Particles/Standard Unlit" 또는 커스텀 셰이더를 써야 점이 올바르게 보입니다.
-        // 여기서는 기본 제공 셰이더를 사용합니다.
-        // 더 나은 시각 품질을 원하면 커스텀 셰이더를 만들어 연결하세요.
-        Material mat = new Material(Shader.Find("Particles/Standard Unlit"));
-        if (mat == null)
+        // Assets/Shaders/PointCloudShader.shader 를 사용합니다.
+        // 이 셰이더는 PSIZE 출력을 지원해서 점 크기 조절이 가능하고
+        // MeshTopology.Points와 함께 쓸 때 에러가 나지 않습니다.
+        Shader shader = Shader.Find("Custom/PointCloud");
+        if (shader == null)
         {
-            // Particles 셰이더가 없을 경우 기본 셰이더로 대체
-            mat = new Material(Shader.Find("Standard"));
-            Debug.LogWarning("[PlyLoader] Particles/Standard Unlit 셰이더를 찾지 못했습니다. Standard로 대체합니다.");
+            Debug.LogError("[PlyLoader] 'Custom/PointCloud' 셰이더를 찾을 수 없습니다.\n" +
+                           "Assets/Shaders/PointCloudShader.shader 파일이 프로젝트에 있는지 확인하세요.");
+            return;
         }
+        Material mat = new Material(shader);
+        mat.SetFloat("_PointSize", pointSize);
         _meshRenderer.material = mat;
 
         Debug.Log($"[PlyLoader] Mesh 생성 완료. Transform으로 위치/회전/스케일 조절 가능합니다.");
