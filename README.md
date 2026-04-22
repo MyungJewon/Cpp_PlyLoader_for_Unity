@@ -115,7 +115,7 @@ PlyFree(handle);                              // 메모리 해제
 | 포맷 | 지원 여부 |
 |------|-----------|
 | binary_little_endian | ✅ |
-| ASCII | ❌ (예정) |
+| ASCII | ❌ |
 
 ---
 
