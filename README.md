@@ -126,3 +126,6 @@ PlyFree(handle);                              // 메모리 해제
 | macOS (Apple Silicon / Intel) | ✅ | ✅ |
 | Windows | ✅ | ✅ |
 | Linux | 미테스트 | 미테스트 |
+
+## 추가 내용
+해당 프로젝트는 Claude Code의 사용/학습용으로 진행되었습니다
